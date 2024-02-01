@@ -1,0 +1,14 @@
+__pycache__/
+
+EVRPTW/
+
+.pytest_cache
+.__pycache__
+.DS_Store
+.idea/
+*.swp
+
+lib/
+bin/
+pyvenv.cfg
+env/

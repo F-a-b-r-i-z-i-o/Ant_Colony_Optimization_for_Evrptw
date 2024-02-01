@@ -1,10 +1,22 @@
 from target import Node
 import numpy as np
 import re
-import copy
+
 class EvrptwGraph:
-    def __init__(self, file_path, xi=0.1):
-        self.xi = xi
+    def __init__(self, file_path, rho=0.1):
+        """
+        Initializes an EVRPTW graph from a given instance file.
+
+        Parameters:
+            file_path (str): Path to the EVRPTW instance file containing node and vehicle data.
+            rho (float, optional): Pheromone evaporation rate for the ACO algorithm. Defaults to 0.1.
+
+        The constructor performs the following initializations:
+        - Reads data from the instance file to set up nodes, vehicle properties, and other parameters.
+        - Calculates initial pheromone levels and sets up a pheromone matrix.
+        - Implements the nearest neighbor heuristic to generate a preliminary solution.
+        """
+        self.rho = rho
         (
             self.node_num,
             self.nodes,
@@ -25,45 +37,43 @@ class EvrptwGraph:
         # Create pheromone matrix
         self.pheromone_mat = np.full((self.node_num, self.node_num), self.tau_0)
 
-    def copy(self, tau_0):
-        new_graph = copy.deepcopy(self)
 
-        # Pherormone
-        new_graph.tau_0 = tau_0
-        new_graph.pheromone_mat = (
-            np.zeros((new_graph.node_num, new_graph.node_num)) * tau_0
-        )
-
-        return new_graph
-
-    def global_update_pheromone(self, best_path, best_path_distance):
+    def global_update_pheromone(self, best_path: list, best_path_distance: float) -> (None):
         """
         Global update pheromone for the best-so-far ant.
-        """
-        # Evaporation
-        self.pheromone_mat *= (1 - self.xi)
 
-        # Update pheromone for arcs in the best-so-far solution
-        current_ind = best_path[0]
-        for next_ind in best_path[1:]:
-            self.pheromone_mat[current_ind][next_ind] += self.xi / best_path_distance
-            current_ind = next_ind
+        Parameters:
+        - best_path (list): The best path found so far.
+        - best_path_distance (float): The total distance of the best path.
+        """
 
-    def local_update_pheromone(self, start_ind: int, end_ind: int):
-        """
-        Local update pheromone as ants move from node i to node j.
-        """
-        self.pheromone_mat[start_ind][end_ind] = ((1 - self.xi) * self.pheromone_mat[start_ind][end_ind]) + (self.xi * self.tau_0)
+        # Only evaporate pheromone on arcs that are part of the best path
+        for i in range(len(best_path) - 1):
+            current_ind = best_path[i]
+            next_ind = best_path[i + 1]
+            self.pheromone_mat[current_ind][next_ind] *= (1 - self.rho)
+            self.pheromone_mat[current_ind][next_ind] += self.rho / best_path_distance
 
     @staticmethod
-    def calculate_distance(node_a, node_b):
+    def calculate_distance_matrix(nodes: list) -> (np.ndarray):
         """
-        Calculate euclidean distance
+        Calculate the Euclidean distance matrix for a list of nodes.
+
+        Parameters:
+        - nodes (list): A list of Node objects.
+
+        Returns:
+        - numpy.ndarray: A distance matrix where element [i, j] represents 
+                        the distance between nodes i and j.
         """
-        return np.linalg.norm([node_a.x - node_b.x, node_a.y - node_b.y])
+        coordinates = np.array([(node.x, node.y) for node in nodes])
+        diff = coordinates[:, np.newaxis, :] - coordinates[np.newaxis, :, :]
+        dist_mat = np.sqrt(np.sum(diff**2, axis=2))
+        dist_mat[dist_mat == 0] = 1e-9  # Avoid division by zero for distances of 0
+        return dist_mat
 
     @staticmethod
-    def _read_instance(file_path: str):
+    def _read_instance(file_path: str) -> (tuple):
         """
         Reads the EVRPTW instance from the given file and extracts necessary information.
 
@@ -95,7 +105,7 @@ class EvrptwGraph:
                 if len(stl) == 8:
                     idx = int(stl[0][1:])
                     new_node = Node(
-                    idx,  # Add this line
+                    idx,  
                     stl[0],
                     stl[1],
                     float(stl[2]),
@@ -126,16 +136,9 @@ class EvrptwGraph:
 
         # Calculating the distance matrix for the nodes
         node_num = len(nodes)
-        node_dist_mat = np.zeros((node_num, node_num))
-
-        for i in range(node_num):
-            node_a = nodes[i]
-            for j in range(i + 1, node_num):
-                node_b = nodes[j]
-                distance = EvrptwGraph.calculate_distance(node_a, node_b)  # Assuming this function exists
-                node_dist_mat[i][j] = distance
-                node_dist_mat[j][i] = distance
-        node_dist_mat[node_dist_mat == 0] = 1e-8
+        
+        # Use calculate_distance_matrix to create the distance matrix
+        node_dist_mat = EvrptwGraph.calculate_distance_matrix(nodes)
 
         return (
             node_num,
@@ -164,50 +167,80 @@ class EvrptwGraph:
             - float: The total distance to the station. Returns None if no station is found.
         """
 
-        # Filter out all the charging stations' indices from the list of nodes
         charging_station_indices = [
             idx for idx, node in enumerate(self.nodes) if node.is_station()
         ]
         min_total_distance = float("inf")
         selected_station_idx = None
 
-        # Iterate through each station index to calculate the total distance from nodes i and j
         for station_idx in charging_station_indices:
             distance_to_i = self.node_dist_mat[i][station_idx]
             distance_to_j = self.node_dist_mat[station_idx][j]
             total_distance = distance_to_i + distance_to_j
 
-            # If the total distance is less than the minimum so far, update the minimum and selected station index
             if total_distance < min_total_distance:
                 min_total_distance = total_distance
                 selected_station_idx = station_idx
 
-        # If a station was found, return its index and the total distance. Otherwise, return -1 and None.
         if selected_station_idx is not None:
             return selected_station_idx, min_total_distance
         else:
-            # If no station is found, return -1 for the station index and None for the distance.
             return -1, None
+
     
-    def nearest_neighbor_heuristic(self, max_vehicle_num=None):
+    def get_coordinates_from_path(self, path: list) -> (list):
+        """
+        Returns the (x, y) coordinates for each node in the given path.
+
+        Parameters:
+        - path (list): A list of node indices representing the path.
+
+        Returns:
+        - list: A list of tuples, each containing the (x, y) coordinates of a node in the path.
+        """
+        coordinates = []
+        for node_idx in path:
+            node = self.nodes[node_idx]
+            coordinates.append((node.x, node.y))
+        return coordinates
+    
+    def create_node_type_map(self) -> (dict):
+        """
+        Creates a map that associates each node's index with its type.
+
+        Returns:
+        dict: A map associating each node's index (int) with its type (str).
+        """
+        return {node.idx: node.node_type for node in self.nodes}
+
+
+    def nearest_neighbor_heuristic(self, max_vehicle_num: int = None) -> (tuple):
+        """
+        Heuristic to generate a preliminary travel path using the nearest neighbor approach.
+
+        Parameters:
+        - max_vehicle_num (int, optional): The maximum number of vehicles to consider.
+
+        Returns:
+        tuple: A tuple containing the travel path (list), the total travel distance (float), 
+               and the number of vehicles used (int).
+        """
         index_to_visit = list(range(1, self.node_num))  # Initialize with all nodes except depot (0)
         current_index = 0
         current_load = 0
         current_time = 0
         travel_distance = 0
         travel_path = [0]
-        current_battery = self.tank_capacity  # Initial fuel
+        current_battery = self.tank_capacity 
 
         if max_vehicle_num is None:
             max_vehicle_num = self.node_num
 
         while len(index_to_visit) > 0 and max_vehicle_num > 0:
             
-            if self.nodes[current_index].is_station() and current_battery < self.tank_capacity:
+            if self.nodes[current_index].is_station() and current_battery <= self.tank_capacity:
                 # Vehicle is currently at a charging station but hasn't fully charged
-                charging_time = self.calculate_charging_time(current_battery)
-                current_time += charging_time
-                current_battery = self.tank_capacity
+                current_battery += self.charging_rate
             else:
                 if current_battery < self.tank_capacity: 
                     nearest_station_index, _ = self.select_closest_station(current_index, 0)
@@ -220,12 +253,8 @@ class EvrptwGraph:
                         # Add travel time to station
                         current_time += distance_to_station / self.velocity
 
-                        # Calculate and add charging time
-                        charging_time = self.calculate_charging_time(current_battery)
-                        current_time += charging_time
-
                         # Complete battery recharge
-                        current_battery = self.tank_capacity  
+                        current_battery += self.charging_rate  
                         current_index = nearest_station_index
                         continue
             
@@ -258,8 +287,28 @@ class EvrptwGraph:
                         index_to_visit.remove(nearest_next_index)
 
                 else:
-                    # Not enough battery to reach next node, consider going to charging station
-                    continue
+                    # Not enough battery to reach next node, find and move to the nearest charging station
+                    nearest_station_index, _ = self.select_closest_station(current_index, 0)
+                    if nearest_station_index is not None and nearest_station_index != current_index:
+                        # Go to the nearest charging station
+                        distance_to_station = self.node_dist_mat[current_index][nearest_station_index]
+                        travel_distance += distance_to_station
+                        travel_path.append(nearest_station_index)
+
+                        # Add travel time to station and adjust battery
+                        current_time += distance_to_station / self.velocity
+                        current_battery = self.tank_capacity  # Assuming immediate full recharge for simplicity
+                        current_index = nearest_station_index
+                        continue
+                    else:
+                        # If no charging station is available, return to depot
+                        distance_to_depot = self.node_dist_mat[current_index][0]
+                        travel_distance += distance_to_depot
+                        current_index = 0
+                        current_battery = self.tank_capacity  # Recharge at depot
+                        current_time = 0
+                        current_load = 0
+                        max_vehicle_num -= 1
             else:
                 distance_to_depot = self.node_dist_mat[current_index][0]
                 travel_distance += distance_to_depot
@@ -277,7 +326,7 @@ class EvrptwGraph:
         return travel_path, travel_distance, vehicle_num
 
 
-    def _cal_nearest_next_index(self, index_to_visit, current_index, current_battery, current_time):
+    def _cal_nearest_next_index(self, index_to_visit: list, current_index: int, current_battery: float, current_time: float) -> (int):
         """
         Calculates the nearest next index that the vehicle can visit from the current index, considering battery and time constraints.
 
@@ -322,25 +371,4 @@ class EvrptwGraph:
                         nearest_ind = next_index
 
         return nearest_ind
-
-
-    def calculate_charging_time(self, current_battery):
-        """
-        Calculates the time needed to fully charge the battery from the current level.
-
-        Args:
-        - current_battery (float): The current battery level.
-
-        Returns:
-        float: The time needed to fully charge the battery.
-        """
-        # Calculates the charge deficit (how far to reach full charge).
-        charge_deficit = self.tank_capacity - current_battery
-        
-        
-        # Calculates the time required to fully charge the battery from the current charge level
-        time_needed_to_full_charge = charge_deficit / self.charging_rate
-
-        return time_needed_to_full_charge
-
 
