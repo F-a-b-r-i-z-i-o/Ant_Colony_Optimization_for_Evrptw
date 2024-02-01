@@ -1,0 +1,13 @@
+aco_config:
+  num_runs: 15
+  ants_num: 10
+  max_iter: 5000
+  alpha: 1
+  beta: 1
+  q0: 0.7
+  k1: 89
+  k2: 0
+  rho: 0.2
+  apply_local_search: True
+  save_path_details: False
+

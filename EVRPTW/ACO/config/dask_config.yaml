@@ -1,0 +1,5 @@
+dask_config:
+  n_workers: 15             # Number of worker processes to spawn
+  threads_per_worker: 1    # Number of threads each worker process should use
+  memory_limit: '4GB'     # Memory limit to assign to each worker. 'auto' lets Dask decide
+  processes: True          # Separate process with True value
