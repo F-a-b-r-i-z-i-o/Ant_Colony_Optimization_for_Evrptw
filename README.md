@@ -34,24 +34,6 @@ By following these steps, you'll set up the necessary environment to run the Ant
 
 ## Results 📊
 
-<<<<<<< HEAD
-- [ ] Insert Table with result 
-
-## Path Visualization 🔄
-
-![Path Evolution](/EVRPTW/img/Run_3_Improvement_5.png)
-
-## Fitness Trend Graph 📉
-
-![Fitness Trend](/EVRPTW/img/fitness_result_Run_3.png)
-
-## Paper Citations 📄
-
-- **Relevant Research**: Cite important papers and research articles influential or relevant to this project, including foundational works on Ant Colony Optimization, studies on Electric Vehicle Routing, and any other pertinent literature.
-- **Example Citation**:
-  - Michalis Mavrovouniotis. "A Multiple Ant Colony System for the Electric Vehicle Routing Problem with Time Windows". KIOS Research and Innovation Center of Excellence, Department of Electrical and Computer Engineering, University of Cyprus, Nicosia, Cyprus. [View Paper](https://ieeexplore.ieee.org/document/10022257).
-- **Format**: Use an appropriate citation format, such as APA or MLA, and provide complete details like authors, title, journal, publication year, etc.
-=======
 ### CPLEX vs MACS vs ACSD BEST VALUES FOUND  
 
 <div align="center">
@@ -111,7 +93,6 @@ Other results are available [Results](/EVRPTW/results/)
 
 ## Paper Citations 📄
 - Michalis Mavrovouniotis. "A Multiple Ant Colony System for the Electric Vehicle Routing Problem with Time Windows". KIOS Research and Innovation Center of Excellence, Department of Electrical and Computer Engineering, University of Cyprus, Nicosia, Cyprus. [View Paper](https://ieeexplore.ieee.org/document/10022257).
->>>>>>> develop
 
 ## Contributing 🤝
 
@@ -121,13 +102,6 @@ Contributions to enhance the project are welcome. Please feel free to fork the r
 
 This project is released under [MIT License](/LICENSE).
 
-<<<<<<< HEAD
-## Acknowledgements 🙏
-
-Special thanks to all contributors and the open-source community for the tools and libraries used in this project.
-
-=======
->>>>>>> develop
 ---
 
 *Enjoy 2F_*
