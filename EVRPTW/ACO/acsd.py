@@ -21,7 +21,18 @@ class AntColonySystem:
         k2 (float): Coefficient for the number of vehicles penalty.
     """
 
-    def __init__(self, graph: EvrptwGraph, ants_num=10, max_iter=400, alpha=1, beta=2, q0=0.9, k1=0, k2=0, apply_local_search=False):
+    def __init__(
+        self,
+        graph: EvrptwGraph,
+        ants_num=10,
+        max_iter=400,
+        alpha=1,
+        beta=2,
+        q0=0.9,
+        k1=0,
+        k2=0,
+        apply_local_search=False,
+    ):
         self.graph = graph
         self.ants_num = ants_num
         self.max_iter = max_iter
@@ -29,16 +40,16 @@ class AntColonySystem:
         self.alpha = alpha
         self.q0 = q0
         self.k1 = k1
-        self.k2 = k2 
+        self.k2 = k2
         self.apply_local_search = apply_local_search
-        
-    def _construct_solution(self, sigma: int):
+
+    def _construct_solution(self, sigma: int) -> tuple[list, float]:
         """
         Constructs a solution (path) for a given number of vehicles (sigma) based on the
         ant colony system and various constraints, including energy limits.
 
-        The function iteratively builds a path by selecting nodes (customers, depot, charging stations) 
-        based on the feasibility and constraints like energy limits and time windows. It utilizes 
+        The function iteratively builds a path by selecting nodes (customers, depot, charging stations)
+        based on the feasibility and constraints like energy limits and time windows. It utilizes
         multiple vehicles if necessary, as specified by the parameter sigma.
 
         Args:
@@ -47,14 +58,16 @@ class AntColonySystem:
         Returns:
         - tuple:
             - list: T_k, the constructed travel path that includes customers, depot, and possibly charging stations.
-            - float: cumulative_time_window_penalty, the total penalty incurred due to time window violations 
+            - float: cumulative_time_window_penalty, the total penalty incurred due to time window violations
                     over the entire constructed path.
         """
-    
+
         T_k = [self.graph.depot.idx]  # Inizialize path from depot
         vehicles = 1
         visited_customers = set()
-        all_customers = set(i for i, node in enumerate(self.graph.nodes) if node.is_customer())
+        all_customers = set(
+            i for i, node in enumerate(self.graph.nodes) if node.is_customer()
+        )
         ants = [Ant(self.graph) for _ in range(self.ants_num)]
         cumulative_time_window_penalty = 0
         penalty_rate = 1.0
@@ -74,13 +87,14 @@ class AntColonySystem:
                 # If there are no more clients to visit, return to the depot.
                 j = self.graph.depot.idx
                 vehicles += 1  # Start a new route with another vehicle.
-            
-            
+
             if j != self.graph.depot.idx:
                 arrival_time_at_j = ant.calculate_arrival_time(j)
                 next_node = self.graph.nodes[j]
 
-                within_time_window, time_violation = ant.check_time_window(arrival_time_at_j, next_node)
+                within_time_window, time_violation = ant.check_time_window(
+                    arrival_time_at_j, next_node
+                )
 
                 if not within_time_window:
                     # Calculates the penalty for exceeding the time window.
@@ -97,7 +111,7 @@ class AntColonySystem:
                     T_k.append(j)
                     visited_customers.add(j)
                     ant.move_to_next_index(j)
-                
+
         if T_k[-1] != self.graph.depot.idx:  # Check depot entry at the end
             i = T_k[-1]
             j = self.graph.depot.idx
@@ -108,13 +122,13 @@ class AntColonySystem:
                     # If the last node in the path is not the charging station, append it
                     T_k.append(s)
                     ant.move_to_next_index(s)
-                    
+
                 T_k.append(j)
                 ant.move_to_next_index(j)
             else:
                 T_k.append(j)
                 ant.move_to_next_index(j)
-                                
+
         return T_k, cumulative_time_window_penalty
 
     def evaluate_solution(self, travel_path: list) -> float:
@@ -184,12 +198,18 @@ class AntColonySystem:
 
                 # Apply local search if enabled
                 if apply_local_search:
-                    T_ant, improved_path_distance = ant.local_search_2opt(self.graph, T_ant)
+                    T_ant, improved_path_distance = ant.local_search_2opt(
+                        self.graph, T_ant
+                    )
                 else:
                     improved_path_distance = self.evaluate_solution(T_ant)
 
                 num_vehicles = self.get_active_vei(T_ant)
-                C_ant = improved_path_distance + (initial_penalty * self.k1) + (num_vehicles * self.k2)
+                C_ant = (
+                    improved_path_distance
+                    + (initial_penalty * self.k1)
+                    + (num_vehicles * self.k2)
+                )
 
                 if C_ant < local_best_cost:
                     local_best_cost = C_ant
@@ -206,23 +226,34 @@ class AntColonySystem:
                 penalty_history.append(local_best_penalty)
                 improved_path.append(T_best)
                 improvement_iter_history.append(iteration)
-               
 
-                print(f"[Iteration {iteration}]: Found improved path with cost {C_final}. Time: {time_history[-1]:.3f} seconds")
+                print(
+                    f"[Iteration {iteration}]: Found improved path with cost {C_final}. Time: {time_history[-1]:.3f} seconds"
+                )
                 self.graph.global_update_pheromone(T_best, C_final)
 
         total_time = time.time() - start_time
-        print(f'Final best path distance: {C_final}. Total time: {total_time:.3f} seconds')
+        print(
+            f"Final best path distance: {C_final}. Total time: {total_time:.3f} seconds"
+        )
 
-        return C_final, C_final_history, time_history, penalty_history, improvement_iter_history, num_vehicles, improved_path
+        return (
+            C_final,
+            C_final_history,
+            time_history,
+            penalty_history,
+            improvement_iter_history,
+            num_vehicles,
+            improved_path,
+        )
 
-    def select_next_index(self, ant: Ant, nodes: list) -> int: 
-        """ 
-        Selects the next index for an ant to visit based on the transition probabilities calculated from 
+    def select_next_index(self, ant: Ant, nodes: list) -> int:
+        """
+        Selects the next index for an ant to visit based on the transition probabilities calculated from
         the pheromone trail and heuristic information.
 
-        The selection strategy incorporates both exploitation (choosing the best option) and exploration 
-        (randomly choosing based on probability distribution) to balance between finding optimal paths 
+        The selection strategy incorporates both exploitation (choosing the best option) and exploration
+        (randomly choosing based on probability distribution) to balance between finding optimal paths
         and exploring new paths.
 
         Args:
@@ -243,13 +274,16 @@ class AntColonySystem:
             # Calculate transition probabilities
             transition_probabilities = np.zeros(len(nodes))
             for idx, j in enumerate(nodes):
-                transition_probabilities[idx] = (
-                    np.power(self.graph.pheromone_mat[current_index][j], self.alpha) *
-                    np.power(ant.eta_k_ij_mat[current_index][j], self.beta)
-                )
+                transition_probabilities[idx] = np.power(
+                    self.graph.pheromone_mat[current_index][j], self.alpha
+                ) * np.power(ant.eta_k_ij_mat[current_index][j], self.beta)
             # Normalize the probabilities
             sum_probabilities = np.sum(transition_probabilities)
-            normalized_probabilities = transition_probabilities / sum_probabilities if sum_probabilities > 0 else None
+            normalized_probabilities = (
+                transition_probabilities / sum_probabilities
+                if sum_probabilities > 0
+                else None
+            )
 
             if normalized_probabilities is not None:
                 if np.random.rand() < self.q0:
@@ -258,8 +292,10 @@ class AntColonySystem:
                     next_index = list(nodes)[max_prob_index]
                 else:
                     # Exploration: Choose the next node based on the probability distribution
-                    next_index = AntColonySystem.stochastic_accept(list(nodes), normalized_probabilities)
-            else:  
+                    next_index = AntColonySystem.stochastic_accept(
+                        list(nodes), normalized_probabilities
+                    )
+            else:
                 next_index = np.random.choice(list(nodes), p=normalized_probabilities)
         else:
             # If sum of probabilities is zero, select randomly
@@ -268,7 +304,7 @@ class AntColonySystem:
         return next_index
 
     @staticmethod
-    def stochastic_accept(index_to_visit: list, transition_prob: list) -> int: 
+    def stochastic_accept(index_to_visit: list, transition_prob: list) -> int:
         """
         Stochastic acceptance rule for selecting the next index to visit based on transition probabilities.
 
@@ -315,7 +351,9 @@ class AntColonySystem:
                 fitness_value = 1.0 / length
             else:
                 # Assign a small fitness value to avoid division by zero
-                fitness_value = 1e-8  # This can be adjusted based on your algorithm's needs
+                fitness_value = (
+                    1e-8  # This can be adjusted based on your algorithm's needs
+                )
             fitness_values.append(fitness_value)
 
         # Compute the cumulative sum of the fitness values using numpy for efficiency
@@ -328,9 +366,8 @@ class AntColonySystem:
         chosen_idx = np.searchsorted(cumulative_fitness, rand_value)
 
         return ants[chosen_idx]
-    
 
-    def get_active_vei(self, path: list) -> int: 
+    def get_active_vei(self, path: list) -> int:
         """
         Calculates the number of active vehicles used in a given path.
 
@@ -346,5 +383,3 @@ class AntColonySystem:
         """
         vei = path.count(0) - 1
         return vei
-
-

@@ -19,7 +19,18 @@ class Node:
         is_customer: Checks if the node is a customer.
     """
 
-    def __init__(self, idx, string_id, node_type, x, y, demand, ready_time, due_date, service_time):
+    def __init__(
+        self,
+        idx,
+        string_id,
+        node_type,
+        x,
+        y,
+        demand,
+        ready_time,
+        due_date,
+        service_time,
+    ):
         """
         Initializes a Node instance for EVRPTW.
 
@@ -51,8 +62,8 @@ class Node:
         Returns:
             bool: True if the node is a depot, False otherwise.
         """
-        return self.node_type == 'd'
-    
+        return self.node_type == "d"
+
     def is_station(self):
         """
         Determines if the node is a charging station.
@@ -60,8 +71,8 @@ class Node:
         Returns:
             bool: True if the node is a charging station, False otherwise.
         """
-        return self.node_type == 'f'
-    
+        return self.node_type == "f"
+
     def is_customer(self):
         """
         Determines if the node is a customer.
@@ -69,4 +80,4 @@ class Node:
         Returns:
             bool: True if the node is a customer, False otherwise.
         """
-        return self.node_type == 'c'
+        return self.node_type == "c"

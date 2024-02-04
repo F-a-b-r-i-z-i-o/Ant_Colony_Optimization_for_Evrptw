@@ -1,5 +1,6 @@
-import numpy as np 
+import numpy as np
 from evrptw_config import EvrptwGraph
+
 
 class Ant:
     def __init__(self, graph: EvrptwGraph, start_index=0):
@@ -10,27 +11,26 @@ class Ant:
             graph (EvrptwGraph): The EVRPTW graph on which the ant operates.
             start_index (int, optional): The starting node index for the ant, typically the depot. Defaults to 0.
 
-        The ant is initialized with a starting node, and various state variables are set, including its current load, 
-        travel time, travel path, arrival times, total travel distance, and fuel level. The ant's path is initially 
+        The ant is initialized with a starting node, and various state variables are set, including its current load,
+        travel time, travel path, arrival times, total travel distance, and fuel level. The ant's path is initially
         set to include only the start node, and it's prepared to visit all other nodes.
         """
-        
+
         self.graph = graph
         self.current_index = start_index
         self.vehicle_load = 0
         self.vehicle_travel_time = 0
-        self.travel_path = [start_index] 
-        self.arrival_time = [0] 
+        self.travel_path = [start_index]
+        self.arrival_time = [0]
         self.total_travel_distance = 0
-        self.fuel_level = self.graph.tank_capacity 
+        self.fuel_level = self.graph.tank_capacity
         self.index_to_visit = list(range(graph.node_num))
-        self.index_to_visit.remove(start_index) 
+        self.index_to_visit.remove(start_index)
 
         # Initialize the dynamic heuristic matrix for ACS-DIST with zeros.
         self.eta_k_ij_mat = np.zeros((self.graph.node_num, self.graph.node_num))
 
-
-    def update_eta_matrix(self) -> (None):
+    def update_eta_matrix(self) -> None:
         """
         Updates the eta matrix, which is used for calculating heuristic values for routing decisions.
 
@@ -43,12 +43,16 @@ class Ant:
                 if i != j:  # Exclude self-loops
                     distance_to_j = self.graph.node_dist_mat[i][j]
                     # Calculate travel time to node j
-                    travel_time_to_j = distance_to_j / self.graph.velocity  # t_ij (the travel time of arc i,j)
+                    travel_time_to_j = (
+                        distance_to_j / self.graph.velocity
+                    )  # t_ij (the travel time of arc i,j)
 
                     # Calculate penalty based on time window constraints
                     e_j = self.graph.nodes[j].ready_time  # Start of time window
-                    l_j = self.graph.nodes[j].due_date    # End of time window
-                    arrival_time_at_j = self.vehicle_travel_time + travel_time_to_j # ct^k is the accumulated travel time of ant k, t_ij
+                    l_j = self.graph.nodes[j].due_date  # End of time window
+                    arrival_time_at_j = (
+                        self.vehicle_travel_time + travel_time_to_j
+                    )  # ct^k is the accumulated travel time of ant k, t_ij
 
                     # Determine penalty for arriving too early or too late
                     penalty = 0
@@ -59,13 +63,12 @@ class Ant:
                     elif e_j <= arrival_time_at_j <= l_j:
                         penalty = 0
 
-            
                     self.eta_k_ij_mat[i][j] = 1 / (travel_time_to_j + penalty)
 
-    def move_to_next_index(self, next_index: int)-> (bool):
+    def move_to_next_index(self, next_index: int) -> bool:
         """
         Attempts to move to the specified next index (node) if energy and other constraints are met.
-        
+
         Args:
             next_index (int): The index of the next node to move to.
 
@@ -82,7 +85,7 @@ class Ant:
         self.current_index = next_index
         return True
 
-    def update_travel_state(self, next_index: int) -> (int): 
+    def update_travel_state(self, next_index: int) -> int:
         """
         Updates the travel state of the vehicle when moving to a new index.
 
@@ -93,12 +96,17 @@ class Ant:
             next_index (int): The index of the next node to move to.
         """
         # Calculate the distance and travel time to the next index
-        distance_to_next_index = self.graph.node_dist_mat[self.current_index][next_index]
+        distance_to_next_index = self.graph.node_dist_mat[self.current_index][
+            next_index
+        ]
         travel_time_to_next_index = distance_to_next_index / self.graph.velocity
 
         self.total_travel_distance += distance_to_next_index
         self.vehicle_travel_time += travel_time_to_next_index
-        self.fuel_level = max(0, self.fuel_level - distance_to_next_index * self.graph.fuel_consumption_rate)
+        self.fuel_level = max(
+            0,
+            self.fuel_level - distance_to_next_index * self.graph.fuel_consumption_rate,
+        )
         self.travel_path.append(next_index)
         self.arrival_time.append(self.vehicle_travel_time)
 
@@ -111,14 +119,14 @@ class Ant:
         elif current_node.is_station():
             self.handle_station_visit()
 
-    def handle_depot_visit(self) -> (None):
-        """ Handles the visit to the depot. """
+    def handle_depot_visit(self) -> None:
+        """Handles the visit to the depot."""
         self.fuel_level = self.graph.tank_capacity
         self.vehicle_load = 0
         self.vehicle_travel_time = 0
 
-    def handle_customer_visit(self, customer_index:int) -> (bool):
-        """ Handles the vist to the customer """
+    def handle_customer_visit(self, customer_index: int) -> bool:
+        """Handles the vist to the customer"""
         customer_node = self.graph.nodes[customer_index]
         demand = customer_node.demand
 
@@ -130,7 +138,9 @@ class Ant:
         arrival_time_at_customer = self.calculate_arrival_time(customer_index)
 
         # Check if the arrival time is within the customer's time window
-        within_time_window, _ = self.check_time_window(arrival_time_at_customer, customer_node)
+        within_time_window, _ = self.check_time_window(
+            arrival_time_at_customer, customer_node
+        )
 
         if not within_time_window:
             return False
@@ -143,8 +153,8 @@ class Ant:
 
         return True
 
-    def handle_station_visit(self) -> (None):
-        """ Handles the visit to the charging station. """
+    def handle_station_visit(self) -> None:
+        """Handles the visit to the charging station."""
 
         # Recharge the vehicle's fuel, but not exceeding the tank's capacity
         if self.fuel_level <= self.graph.tank_capacity:
@@ -152,7 +162,7 @@ class Ant:
         else:
             self.fuel_level = self.graph.tank_capacity
 
-    def has_enough_energy(self, current_index: int, next_index: int) -> (bool):
+    def has_enough_energy(self, current_index: int, next_index: int) -> bool:
         """
         Checks if there is enough energy to move from the current index to the next index.
 
@@ -163,21 +173,28 @@ class Ant:
         Returns:
             bool: True if there is enough energy, False otherwise.
         """
-        if self.graph.nodes[current_index].is_station() and self.fuel_level < self.graph.tank_capacity:
-            self.fuel_level = min(self.fuel_level + self.graph.charging_rate, self.graph.tank_capacity)
+        if (
+            self.graph.nodes[current_index].is_station()
+            and self.fuel_level < self.graph.tank_capacity
+        ):
+            self.fuel_level = min(
+                self.fuel_level + self.graph.charging_rate, self.graph.tank_capacity
+            )
             return True
-        
+
         # Calculate the fuel required to move to the next index.
         dist_to_next = self.graph.node_dist_mat[current_index][next_index]
         fuel_required_to_next = dist_to_next * self.graph.fuel_consumption_rate
 
         # Check if there is enough fuel to move directly to the next index.
         if self.fuel_level >= fuel_required_to_next:
-            self.fuel_level -= fuel_required_to_next 
+            self.fuel_level -= fuel_required_to_next
             return True
 
         # If not enough fuel to go directly, check for the nearest charging station on the path.
-        nearest_charge_station, dist_to_station = self.graph.select_closest_station(current_index, next_index)
+        nearest_charge_station, dist_to_station = self.graph.select_closest_station(
+            current_index, next_index
+        )
         if nearest_charge_station is not None:
             if self.fuel_level >= dist_to_station * self.graph.fuel_consumption_rate:
                 self.fuel_level -= dist_to_station * self.graph.fuel_consumption_rate
@@ -208,21 +225,21 @@ class Ant:
         # 3. Energy (fuel) constraint.
         if not self.has_enough_energy(self.current_index, next_index):
             return False  # Not enough energy to move to the next index.
-        
-        #4. Time window constraint.
+
+        # 4. Time window constraint.
         arrival_time_at_next = self.calculate_arrival_time(next_index)
         if next_node.is_customer():
             time_window_ok, _ = self.check_time_window(arrival_time_at_next, next_node)
             if not time_window_ok:
                 return False  # Time window constraint not met.
-    
+
         # 5. Feasibility of returning to the depot.
         if not self.can_return_to_depot_from(next_index, arrival_time_at_next):
             return False  # Can't return to depot in time from this node.
 
         return True  # All constraints met.
 
-    def calculate_arrival_time(self, next_index:int) -> (float):
+    def calculate_arrival_time(self, next_index: int) -> float:
         """
         Calculates the arrival time at the next index.
 
@@ -235,7 +252,9 @@ class Ant:
         dist_to_next = self.graph.node_dist_mat[self.current_index][next_index]
         return self.vehicle_travel_time + dist_to_next / self.graph.velocity
 
-    def check_time_window(self, arrival_time: float, next_node: int) -> tuple[bool, float]:
+    def check_time_window(
+        self, arrival_time: float, next_node: int
+    ) -> tuple[bool, float]:
         """
         Checks if the service at the next node can be started within its time window.
 
@@ -246,10 +265,10 @@ class Ant:
         Returns:
             tuple:
                 - bool: True if the service can be started and completed within the time window, False otherwise.
-                - float: The amount of time by which the service end time exceeds the node's due date. 
+                - float: The amount of time by which the service end time exceeds the node's due date.
                         If the service is within the time window, this value is 0.
         """
-        
+
         # Wait if necessary and check if service can be started within the time window.
         wait_time = max(next_node.ready_time - arrival_time, 0)
         service_start_time = arrival_time + wait_time
@@ -260,7 +279,7 @@ class Ant:
 
         return service_end_time <= next_node.due_date, time_violation
 
-    def can_return_to_depot_from(self, next_index: int, current_time: float) -> bool: 
+    def can_return_to_depot_from(self, next_index: int, current_time: float) -> bool:
         """
         Checks if the vehicle can return to the depot from the next index within the depot's due time.
 
@@ -279,8 +298,12 @@ class Ant:
         """
         Handles the logic when the ant needs to return to the depot.
         """
-        self.total_travel_distance += self.graph.node_dist_mat[self.current_index][0]  # Distance to depot
-        self.vehicle_travel_time += self.graph.node_dist_mat[self.current_index][0] / self.graph.velocity  # Travel time to depot
+        self.total_travel_distance += self.graph.node_dist_mat[self.current_index][
+            0
+        ]  # Distance to depot
+        self.vehicle_travel_time += (
+            self.graph.node_dist_mat[self.current_index][0] / self.graph.velocity
+        )  # Travel time to depot
         self.fuel_level = self.graph.tank_capacity  # Refuel at depot
         self.vehicle_load = 0  # Unload any cargo
         self.travel_path.append(0)  # Add depot to the travel path
@@ -298,8 +321,8 @@ class Ant:
             bool: True if the capacity constraint is not violated, False otherwise.
         """
         if next_index < 0 or next_index >= len(self.graph.nodes):
-            return False  
-        
+            return False
+
         next_node = self.graph.nodes[next_index]
 
         if next_node.is_customer():
@@ -308,8 +331,7 @@ class Ant:
                 return False  # Capacity constraint violated.
         return True  # No capacity constraint violation.
 
-
-    def cal_nearest_next_index(self, next_index_list: list) -> int: 
+    def cal_nearest_next_index(self, next_index_list: list) -> int:
         """
         Calculates the nearest index from the current position among a list of indices.
 
@@ -329,19 +351,19 @@ class Ant:
                 nearest_ind = next_ind
         return nearest_ind
 
-    def calculate_feasible_neighbors(self) -> list: 
+    def calculate_feasible_neighbors(self) -> list:
         """
         Calculate feasible neighbors of the ant, excluding charging stations and the depot,
         and return a list of their indices.
 
-        This function evaluates each node in the graph, except for the depot and charging stations, 
-        to determine if it can be visited next by the ant. A node is considered feasible if it has 
-        not been visited yet and meets all the routing constraints such as energy requirements, 
+        This function evaluates each node in the graph, except for the depot and charging stations,
+        to determine if it can be visited next by the ant. A node is considered feasible if it has
+        not been visited yet and meets all the routing constraints such as energy requirements,
         load capacity, and time windows.
 
         Returns:
-            list: A list of indices, each corresponding to a feasible node that the ant can visit next. 
-                These indices refer to nodes that are neither charging stations nor the depot and 
+            list: A list of indices, each corresponding to a feasible node that the ant can visit next.
+                These indices refer to nodes that are neither charging stations nor the depot and
                 meet all necessary constraints for the next visit.
         """
         feasible_neighbors = []
@@ -363,11 +385,11 @@ class Ant:
         Return: distance (float): the total travel distance of the given travel path.
         """
 
-        # Verify empty path if empty return -1 
+        # Verify empty path if empty return -1
         if not travel_path:
             return -1
 
-        # Inizialize total distance and firtst index of path 
+        # Inizialize total distance and firtst index of path
         distance = 0
         current_ind = travel_path[0]
 
@@ -377,8 +399,8 @@ class Ant:
             current_ind = next_ind
 
         return distance
-    
-    def is_feasible(self, path: list, ant: 'Ant') -> bool:
+
+    def is_feasible(self, path: list, ant: "Ant") -> bool:
         """
         Verifies if a given path is feasible for the EVRPTW.
 
@@ -402,13 +424,15 @@ class Ant:
 
         return True  # The path is feasible
 
-    def local_search_2opt(self, graph: EvrptwGraph, best_path: list) -> tuple[list, float]:
+    def local_search_2opt(
+        self, graph: EvrptwGraph, best_path: list
+    ) -> tuple[list, float]:
         """
         Performs a local search optimization on the given path using the swap method.
 
-        This function iterates over pairs of non-depot nodes in the path and attempts to swap them 
-        to find a more optimal route. The goal is to minimize the total travel distance. After each swap, 
-        it checks the feasibility of the new path. If the new path is feasible and has a shorter distance 
+        This function iterates over pairs of non-depot nodes in the path and attempts to swap them
+        to find a more optimal route. The goal is to minimize the total travel distance. After each swap,
+        it checks the feasibility of the new path. If the new path is feasible and has a shorter distance
         than the current best path, it updates the best path.
 
         Args:
@@ -433,10 +457,14 @@ class Ant:
                 new_path[i], new_path[j] = new_path[j], new_path[i]
 
                 # Recalculate the distance for the specific segment of the path that was affected by the swap
-                affected_distance = Ant.cal_total_travel_distance(graph, new_path[i - 1:j + 2])
+                affected_distance = Ant.cal_total_travel_distance(
+                    graph, new_path[i - 1 : j + 2]
+                )
 
                 # Determine if the new segment distance is better than the old one
-                old_segment_distance = Ant.cal_total_travel_distance(graph, best_path[i - 1:j + 2])
+                old_segment_distance = Ant.cal_total_travel_distance(
+                    graph, best_path[i - 1 : j + 2]
+                )
                 if affected_distance < old_segment_distance:
                     # Check the feasibility of the entire new path
                     if self.is_feasible(new_path, ant):
@@ -446,5 +474,3 @@ class Ant:
                         print("\n\nImproved path found during local search.")
 
         return best_path, best_distance
-
-
