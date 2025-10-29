@@ -100,7 +100,7 @@ Contributions to enhance the project are welcome. Please feel free to fork the r
 
 ## License 📄
 
-This project is released under [MIT License](/LICENSE).
+This project is released under [GPL-3.0 License](/LICENSE).
 
 ---
 
