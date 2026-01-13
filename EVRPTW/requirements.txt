@@ -5,4 +5,4 @@ matplotlib==3.8.2
 numpy==1.26.2
 pandas==2.2.0
 pytest==7.4.3
-virtualenv==20.26.6
+virtualenv==20.36.1
