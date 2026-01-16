@@ -1,6 +1,6 @@
 dask==2024.1.0
 distlib==0.3.8
-distributed==2023.10.0
+distributed==2026.1.1
 matplotlib==3.8.2
 numpy==1.26.2
 pandas==2.2.0
